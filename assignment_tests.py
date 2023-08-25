@@ -1,7 +1,10 @@
 import unittest
 import tensorflow as tf
-from assignment import *
+import assignment as am
 from convolution import *
+
+def loss(logits, labels):
+    return np.mean(am.loss(logits, labels))
 
 class TestAssignment2(unittest.TestCase):
     def assertSequenceEqual(self, arr1, arr2):
@@ -88,5 +91,3 @@ class TestAssignment2(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-

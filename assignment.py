@@ -7,8 +7,7 @@ import os
 import sys
 import tensorflow as tf
 import numpy as np
-import random
-
+import copy
 
 def linear_unit(x, W, b):
   return tf.matmul(x, W) + b
@@ -36,7 +35,7 @@ class ModelPart0:
 
 
         self.trainable_variables = [self.W1, self.B1]
-
+        self.optimal_variables = [self.W1, self.B1]
 
     def call(self, inputs):
         """
@@ -52,6 +51,66 @@ class ModelPart0:
         x = linear_unit(inputs, self.W1, self.B1)
 
         return x
+    
+    def update_optimal_variables(self):
+        self.optimal_variables = copy.deepcopy(self.trainable_variables)
+
+class ModelPart1:
+    def __init__(self):
+        """
+        This model class contains a single layer network similar to Assignment 1.
+        """
+
+        self.batch_size = 64
+        self.num_classes = 2
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+
+        input = 32 * 32 * 3
+        layer_1_output = 256
+        output = 2
+
+        self.W1 = tf.Variable(tf.random.truncated_normal([input, layer_1_output],
+                                                         dtype=tf.float32,
+                                                         stddev=0.1),
+                              name="W1")
+        self.B1 = tf.Variable(tf.random.truncated_normal([1, layer_1_output],
+                                                         dtype=tf.float32,
+                                                         stddev=0.1),
+                              name="B1")
+
+        self.W2 = tf.Variable(tf.random.truncated_normal([layer_1_output, output],
+                                                         dtype=tf.float32,
+                                                         stddev=0.1),
+                              name="W1")
+        self.B2 = tf.Variable(tf.random.truncated_normal([1, output],
+                                                         dtype=tf.float32,
+                                                         stddev=0.1),
+                              name="B1")
+
+        self.trainable_variables = [self.W1, self.B1, self.W2, self.B2]
+        self.optimal_variables = [self.W1, self.B1, self.W2, self.B2]
+
+    def call(self, inputs):
+        """
+        Runs a forward pass on an input batch of images.
+        :param inputs: images, shape of (num_inputs, 32, 32, 3); during training, the shape is (batch_size, 32, 32, 3)
+        :return: logits - a matrix of shape (num_inputs, num_classes); during training, it would be (batch_size, 2)
+        """
+        # Remember that
+        # shape of input = (num_inputs (or batch_size), in_height, in_width, in_channels)
+
+        # this reshape "flattens" the image data
+        inputs = np.reshape(inputs, [inputs.shape[0],-1])
+        x1 = linear_unit(inputs, self.W1, self.B1)
+        # apply ReLU activation
+        x1_relu = tf.nn.relu(x1)
+        x2 = linear_unit(x1_relu, self.W2, self.B2)
+
+        return x2
+    
+    def update_optimal_variables(self):
+        self.optimal_variables = copy.deepcopy(self.trainable_variables)
+
 
 def loss(logits, labels):
     """
@@ -64,7 +123,7 @@ def loss(logits, labels):
     """
     cross_loss = tf.nn.softmax_cross_entropy_with_logits(labels=labels, logits=logits)
 
-    return np.mean(cross_loss)
+    return cross_loss
 
 def accuracy(logits, labels):
     """
@@ -94,8 +153,9 @@ def train(model, train_inputs, train_labels):
     :return: None
     '''
     # Generate a shuffled index order
+    # tf.random.set_seed(2023)
     num_elements = tf.shape(train_inputs)[0]
-    shuffled_indices = tf.random.shuffle(tf.range(num_elements))
+    shuffled_indices = tf.random.shuffle(tf.range(num_elements), seed = 2023)
 
     shuffled_train_inputs = tf.gather(train_inputs, shuffled_indices)
     shuffled_train_labels = tf.gather(train_labels, shuffled_indices)
@@ -108,7 +168,7 @@ def train(model, train_inputs, train_labels):
         # Implement back-prop:
         # For every batch, compute then descend the gradients for the model's weights
         with tf.GradientTape() as tape:
-            predictions = model(inputs) # this calls the call function conveniently
+            predictions = model.call(inputs) # this calls the call function conveniently
             cross_loss = loss(predictions, labels)
 
         gradients = tape.gradient(cross_loss, model.trainable_variables)
@@ -156,7 +216,6 @@ def visualize_results(image_inputs, probabilities, image_labels, first_label, se
             ax.tick_params(axis='both', which='both', length=0)
     plt.show()
 
-
 CLASS_CAT = 3
 CLASS_DOG = 5
 EPOCHS = 25
@@ -174,32 +233,38 @@ def main(cifar10_data_folder):
                                           CLASS_CAT, CLASS_DOG)
     test_inputs, test_labels = get_data(os.path.join(cifar10_data_folder, "test"),
                                         CLASS_CAT, CLASS_DOG)
-		
-	# Create Model
-    model = ModelPart0()
-    
-    metric = tf.keras.metrics.Accuracy()
+	# Create ModelPart0
+    # model = ModelPart0()
+    model = ModelPart1()
+
+    results = np.zeros((EPOCHS, 3))
     for epoch in range(0, EPOCHS):
         train(model, train_inputs, train_labels)
         predictions = model.call(train_inputs)
-        metric.update_state(predictions, train_labels)
-        train_acc = metric.result().numpy()
+        train_acc = accuracy(predictions, train_labels)
+        test_acc = test(model, test_inputs, test_labels)
         c_loss = loss(predictions, train_labels)
-        print(f"Training Accuracy: {train_acc}, loss: {c_loss} after {epoch + 1} epochs")
+        # Save the results in the array
+        if test_acc > np.max(results[:, 1]):
+            model.update_optimal_variables()
 
-    # Train accuracy
-    train_accuracy = model.accuracy(model.call(train_inputs), train_labels)
-    print(f"Final train accuracy is: {train_accuracy}")
+        results[epoch, ] = [train_acc, test_acc, np.mean(c_loss)]
+        print(f"Training Accuracy: {train_acc},"
+              f"Testing Accuracy: {test_acc},"
+              f" loss: {np.mean(c_loss)} after {epoch + 1} epochs")
 
-    # Test the accuracy by calling test() after running train()
-    test_accuracy = test(model, test_inputs, test_labels)
-    print(f"test accuracy is: {test_accuracy}")
+    # Max test accuracy index
+    max_index = np.argmax(results[:, 1])
+    print(f"{type(model).__name__} Best test accuracy is: {results[max_index, 1]}")
+    print(f"{type(model).__name__} Train accuracy is: {results[max_index, 0]}")
 
-    # # Visualize the data by using visualize_results()
-    # random_nums = np.random.randint(1, 10000, size=10)
-    # visualize_results(test_inputs[random_nums], model.call(test_inputs[random_nums]), test_labels[random_nums])
+    # Visualize the data by using visualize_results()
+    # random_nums = np.random.randint(1, len(test_labels), size=10)
+    # visualize_results(test_inputs[random_nums], 
+    #                   model.call(test_inputs[random_nums]),
+    #                   test_labels.numpy()[random_nums], CLASS_CAT, CLASS_DOG)
 
-    print("end of assignment 1")
+    print("End of assignment 2")
 
 if __name__ == '__main__':
     # Check if any command-line arguments are provided

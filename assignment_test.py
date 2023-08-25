@@ -15,9 +15,12 @@ class TestAssignment2(unittest.TestCase):
         '''
         labels = tf.constant([[1.0, 0.0]])
         logits = tf.constant([[1.0, 0.0]])
-        self.assertAlmostEqual(loss(logits, labels), 0.31326166)
+        self.assertAlmostEqual(np.mean(loss(logits, labels)), 0.31326166)
         logits = tf.constant([[1.0, 0.0], [0.0, 1.0]])
-        self.assertAlmostEqual(loss(logits, labels), 0.8132616281509399)
+        self.assertAlmostEqual(np.mean(loss(logits, labels)), 0.8132616281509399)
+
+    def test_input_reshape(self):
+        
 
 if __name__ == '__main__':
     unittest.main()
