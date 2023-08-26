@@ -9,6 +9,13 @@ import tensorflow as tf
 import numpy as np
 import copy
 
+from model_part1 import ModelPart1
+from model_part3 import ModelPart3
+
+import pdb
+
+DEBUG_ENABLE = False
+
 def linear_unit(x, W, b):
   return tf.matmul(x, W) + b
 
@@ -54,63 +61,6 @@ class ModelPart0:
     
     def update_optimal_variables(self):
         self.optimal_variables = copy.deepcopy(self.trainable_variables)
-
-class ModelPart1:
-    def __init__(self):
-        """
-        This model class contains a single layer network similar to Assignment 1.
-        """
-
-        self.batch_size = 64
-        self.num_classes = 2
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
-
-        input = 32 * 32 * 3
-        layer_1_output = 256
-        output = 2
-
-        self.W1 = tf.Variable(tf.random.truncated_normal([input, layer_1_output],
-                                                         dtype=tf.float32,
-                                                         stddev=0.1),
-                              name="W1")
-        self.B1 = tf.Variable(tf.random.truncated_normal([1, layer_1_output],
-                                                         dtype=tf.float32,
-                                                         stddev=0.1),
-                              name="B1")
-
-        self.W2 = tf.Variable(tf.random.truncated_normal([layer_1_output, output],
-                                                         dtype=tf.float32,
-                                                         stddev=0.1),
-                              name="W1")
-        self.B2 = tf.Variable(tf.random.truncated_normal([1, output],
-                                                         dtype=tf.float32,
-                                                         stddev=0.1),
-                              name="B1")
-
-        self.trainable_variables = [self.W1, self.B1, self.W2, self.B2]
-        self.optimal_variables = [self.W1, self.B1, self.W2, self.B2]
-
-    def call(self, inputs):
-        """
-        Runs a forward pass on an input batch of images.
-        :param inputs: images, shape of (num_inputs, 32, 32, 3); during training, the shape is (batch_size, 32, 32, 3)
-        :return: logits - a matrix of shape (num_inputs, num_classes); during training, it would be (batch_size, 2)
-        """
-        # Remember that
-        # shape of input = (num_inputs (or batch_size), in_height, in_width, in_channels)
-
-        # this reshape "flattens" the image data
-        inputs = np.reshape(inputs, [inputs.shape[0],-1])
-        x1 = linear_unit(inputs, self.W1, self.B1)
-        # apply ReLU activation
-        x1_relu = tf.nn.relu(x1)
-        x2 = linear_unit(x1_relu, self.W2, self.B2)
-
-        return x2
-    
-    def update_optimal_variables(self):
-        self.optimal_variables = copy.deepcopy(self.trainable_variables)
-
 
 def loss(logits, labels):
     """
@@ -165,9 +115,13 @@ def train(model, train_inputs, train_labels):
         inputs = shuffled_train_inputs[start:start + model.batch_size]
         labels = shuffled_train_labels[start:start + model.batch_size]
 
+        if DEBUG_ENABLE:
+            pdb.set_trace()
+
         # Implement back-prop:
         # For every batch, compute then descend the gradients for the model's weights
         with tf.GradientTape() as tape:
+            # tape.watch(model.filters)
             predictions = model.call(inputs) # this calls the call function conveniently
             cross_loss = loss(predictions, labels)
 
@@ -235,7 +189,7 @@ def main(cifar10_data_folder):
                                         CLASS_CAT, CLASS_DOG)
 	# Create ModelPart0
     # model = ModelPart0()
-    model = ModelPart1()
+    model = ModelPart3()
 
     results = np.zeros((EPOCHS, 3))
     for epoch in range(0, EPOCHS):
@@ -260,7 +214,7 @@ def main(cifar10_data_folder):
 
     # Visualize the data by using visualize_results()
     # random_nums = np.random.randint(1, len(test_labels), size=10)
-    # visualize_results(test_inputs[random_nums], 
+    # visualize_results(test_inputs[random_nums], cifar10_data_folder
     #                   model.call(test_inputs[random_nums]),
     #                   test_labels.numpy()[random_nums], CLASS_CAT, CLASS_DOG)
 
@@ -273,6 +227,14 @@ if __name__ == '__main__':
         directory = sys.argv[1]
     else:
         directory = os.path.dirname(os.path.abspath(__file__))
+
+    py_dbg_enable = os.environ.get("PY_DBG_ENABLE")
+
+    if py_dbg_enable and py_dbg_enable.upper() == "TRUE":
+        print("Enable pdb debug!")
+        DEBUG_ENABLE = True
+    else:
+        DEBUG_ENABLE = False
 
     if os.path.exists(directory):
         cifar_data_folder = os.path.join(directory, 'CIFAR_data')
