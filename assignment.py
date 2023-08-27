@@ -44,6 +44,10 @@ class ModelPart0:
         self.trainable_variables = [self.W1, self.B1]
         self.optimal_variables = [self.W1, self.B1]
 
+    def use_optimal_variable(self):
+        self.W1 = self.optimal_variables[0]
+        self.B1 = self.optimal_variables[1]
+
     def call(self, inputs):
         """
         Runs a forward pass on an input batch of images.
@@ -174,6 +178,34 @@ CLASS_CAT = 3
 CLASS_DOG = 5
 EPOCHS = 25
 
+def train_epochs(model, train_inputs, train_labels,
+                 test_inputs, test_labels, epochs):
+    results = np.zeros((epochs, 3))
+    for epoch in range(0, epochs):
+        train(model, train_inputs, train_labels)
+        predictions = model.call(train_inputs)
+        train_acc = accuracy(predictions, train_labels)
+        test_acc = test(model, test_inputs, test_labels)
+        c_loss = loss(predictions, train_labels)
+        
+        # Save the results in the array
+        if test_acc > np.max(results[:, 1]):
+            model.update_optimal_variables()
+
+        results[epoch, ] = [train_acc, test_acc, np.mean(c_loss)]
+        print(f"Training Accuracy: {train_acc}, "
+              f"Testing Accuracy: {test_acc}, "
+              f"Loss: {np.mean(c_loss)} after {epoch + 1} epochs")
+
+    # Max test accuracy index
+    max_index = np.argmax(results[:, 1])
+    print(f"{type(model).__name__} Best test accuracy is: {results[max_index, 1]}")
+    print(f"{type(model).__name__} Train accuracy is: {results[max_index, 0]}")
+
+    model.use_optimal_variable()
+
+    return results
+
 def main(cifar10_data_folder):
     '''
     Read in CIFAR10 data (limited to 2 classes), initialize your model, and train and
@@ -187,36 +219,24 @@ def main(cifar10_data_folder):
                                           CLASS_CAT, CLASS_DOG)
     test_inputs, test_labels = get_data(os.path.join(cifar10_data_folder, "test"),
                                         CLASS_CAT, CLASS_DOG)
-	# Create ModelPart0
-    # model = ModelPart0()
+    # Create ModelPart0
+    model = ModelPart0()
+    train_epochs(model, train_inputs, train_labels,
+                 test_inputs, test_labels, EPOCHS)
+    test_acc = test(model, test_inputs, test_labels)
+    print(f"{type(model).__name__} test accuracy is: {test_acc}")
+
+    model = ModelPart1()
+    train_epochs(model, train_inputs, train_labels,
+                 test_inputs, test_labels, EPOCHS)
+    test_acc = test(model, test_inputs, test_labels)
+    print(f"{type(model).__name__} test accuracy is: {test_acc}")
+
     model = ModelPart3()
-
-    results = np.zeros((EPOCHS, 3))
-    for epoch in range(0, EPOCHS):
-        train(model, train_inputs, train_labels)
-        predictions = model.call(train_inputs)
-        train_acc = accuracy(predictions, train_labels)
-        test_acc = test(model, test_inputs, test_labels)
-        c_loss = loss(predictions, train_labels)
-        # Save the results in the array
-        if test_acc > np.max(results[:, 1]):
-            model.update_optimal_variables()
-
-        results[epoch, ] = [train_acc, test_acc, np.mean(c_loss)]
-        print(f"Training Accuracy: {train_acc},"
-              f"Testing Accuracy: {test_acc},"
-              f" loss: {np.mean(c_loss)} after {epoch + 1} epochs")
-
-    # Max test accuracy index
-    max_index = np.argmax(results[:, 1])
-    print(f"{type(model).__name__} Best test accuracy is: {results[max_index, 1]}")
-    print(f"{type(model).__name__} Train accuracy is: {results[max_index, 0]}")
-
-    # Visualize the data by using visualize_results()
-    # random_nums = np.random.randint(1, len(test_labels), size=10)
-    # visualize_results(test_inputs[random_nums], cifar10_data_folder
-    #                   model.call(test_inputs[random_nums]),
-    #                   test_labels.numpy()[random_nums], CLASS_CAT, CLASS_DOG)
+    train_epochs(model, train_inputs, train_labels,
+                 test_inputs, test_labels, EPOCHS)
+    test_acc = test(model, test_inputs, test_labels)
+    print(f"{type(model).__name__} test accuracy is: {test_acc}")
 
     print("End of assignment 2")
 
@@ -225,21 +245,24 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         # use the first argument as the directory
         directory = sys.argv[1]
+        if not directory.endswith("CIFAR_data"):
+            cifar_data_folder = os.path.join(directory, 'CIFAR_data')
+        else:
+            cifar_data_folder = directory
     else:
         directory = os.path.dirname(os.path.abspath(__file__))
+        cifar_data_folder = os.path.join(directory, 'CIFAR_data')
 
+    # for debug
     py_dbg_enable = os.environ.get("PY_DBG_ENABLE")
-
     if py_dbg_enable and py_dbg_enable.upper() == "TRUE":
         print("Enable pdb debug!")
         DEBUG_ENABLE = True
     else:
         DEBUG_ENABLE = False
 
-    if os.path.exists(directory):
-        cifar_data_folder = os.path.join(directory, 'CIFAR_data')
+    if os.path.exists(cifar_data_folder):
         main(cifar_data_folder)
     else:
-        print(f"Directory {directory} does not exist!")
-
+        print(f"Directory {cifar_data_folder} does not exist!")
 

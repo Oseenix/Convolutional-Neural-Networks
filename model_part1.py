@@ -40,6 +40,12 @@ class ModelPart1:
         self.trainable_variables = [self.W1, self.B1, self.W2, self.B2]
         self.optimal_variables = [self.W1, self.B1, self.W2, self.B2]
 
+    def use_optimal_variable(self):
+        self.W1 = self.optimal_variables[0]
+        self.B1 = self.optimal_variables[1]
+        self.W2 = self.optimal_variables[2]
+        self.B2 = self.optimal_variables[3]
+
     def call(self, inputs):
         """
         Runs a forward pass on an input batch of images.

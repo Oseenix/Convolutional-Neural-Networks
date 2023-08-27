@@ -13,7 +13,7 @@ class ModelPart3:
         """
         This model class contains a single layer network similar to Assignment 1.
         """
-        self.batch_size = 64
+        self.batch_size = 128
         self.num_classes = 2
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
@@ -93,6 +93,14 @@ class ModelPart3:
         self.optimal_variables = [self.filters, self.cnn_bias,
                                   # self.filters_2, self.cnn_bias_2,
                                   self.W1, self.B1, self.W2, self.B2]
+
+    def use_optimal_variable(self):
+        self.filters = self.optimal_variables[0]
+        self.cnn_bias = self.optimal_variables[1]
+        self.W1 = self.optimal_variables[2]
+        self.B1 = self.optimal_variables[3]
+        self.W2 = self.optimal_variables[4]
+        self.B2 = self.optimal_variables[5]
 
     def call(self, inputs):
         """
