@@ -45,7 +45,7 @@ def pre_process_data(inputs, labels, first_class, second_class):
     and labels has size (num_examples, num_classes)
     """
 	# Extract matching classes
-    matched = np.logical_or(labels == CLASS_CAT, labels == CLASS_DOG)
+    matched = np.logical_or(labels == first_class, labels == second_class)
     matched_inputs = inputs[matched]
     # Normalize inputs & reshape
     matched_inputs = matched_inputs.astype(np.float32) / 255
@@ -54,7 +54,7 @@ def pre_process_data(inputs, labels, first_class, second_class):
     matched_inputs = np.transpose(matched_inputs, (0, 2, 3, 1))
 
     # One-hot
-    conditions = [labels == CLASS_CAT, labels == CLASS_DOG]
+    conditions = [labels == first_class, labels == second_class]
     choices = [1, 0]
     matched_labels = tf.one_hot(np.select(conditions, choices, default=labels)[matched],
                                 depth=2)

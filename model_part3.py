@@ -22,8 +22,15 @@ class ModelPart3:
         """
         self.filter_height = 5
         self.filter_width = 5
-        self.output_channels = 16
+        self.output_channels = 8
         self.strides = [1, 1, 1, 1]
+
+        """
+        Max-pooling
+        """
+        self.pool_size = 3
+        self.pool_strides = [2, 2]
+
 
         self.filters = tf.Variable(
             tf.random.truncated_normal([self.filter_height, self.filter_width,
@@ -32,18 +39,38 @@ class ModelPart3:
                                         name = "filters")
         self.cnn_bias = tf.Variable(tf.random.normal([self.output_channels]))
 
-        """
-        Max-pooling
-        """
-        self.pool_size = 2
-        self.pool_strides = [1, 2, 2, 1]
 
-        cnn_input = 32 * 32 * self.output_channels
+        """
+        CNN-2 filter parameters
+        self.filter_height_2 = 3
+        self.filter_width_2 = 3
+        self.output_channels_2 = 32
+        self.strides_2 = [1, 1, 1, 1]
+
+        self.filters_2 = tf.Variable(
+            tf.random.truncated_normal([self.filter_height_2, self.filter_width,
+                                        self.output_channels, self.output_channels_2],
+                                        dtype = tf.float32, stddev = 0.1),
+                                        name = "filters")
+        self.cnn_bias_2 = tf.Variable(tf.random.normal([self.output_channels_2]))
+
+        self.pool_size_2 = 2
+        self.pool_strides_2 = [2, 2]
+
+        linear_input = int(32 / self.pool_strides[0] / self.pool_strides_2[0]
+                      * 32 / self.pool_strides[1] / self.pool_strides_2[1]
+                      * self.output_channels_2)
+        """
+
+        linear_input = int(32 / self.pool_strides[0]
+                      * 32 / self.pool_strides[1] 
+                      * self.output_channels)
+
         layer_1_output = 256
         output = 2
 
         self.W1 = tf.Variable(
-            tf.random.truncated_normal([cnn_input, layer_1_output],
+            tf.random.truncated_normal([linear_input, layer_1_output],
                                        dtype=tf.float32, stddev=0.1),
             name="W1")
         self.B1 = tf.Variable(
@@ -61,8 +88,10 @@ class ModelPart3:
             name="B1")
 
         self.trainable_variables = [self.filters, self.cnn_bias,
+                                    # self.filters_2, self.cnn_bias_2,
                                     self.W1, self.B1, self.W2, self.B2]
         self.optimal_variables = [self.filters, self.cnn_bias,
+                                  # self.filters_2, self.cnn_bias_2,
                                   self.W1, self.B1, self.W2, self.B2]
 
     def call(self, inputs):
@@ -73,16 +102,24 @@ class ModelPart3:
         """
         # shape of input  (num_inputs (or batch_size), in_height, in_width, in_channels)
         # shape of output (num_inputs, output_height, output_width, output_channels)
-        x0_conv = tf.nn.conv2d(inputs, self.filters, [1, 1, 1, 1], padding="SAME")
-        x0_conv_bias = tf.nn.bias_add(x0_conv, self.cnn_bias)
-        x0_relu = tf.nn.relu(x0_conv_bias)
+        c1_conv = tf.nn.conv2d(inputs, self.filters, self.strides, padding="SAME")
+        c1_conv_bias = tf.nn.bias_add(c1_conv, self.cnn_bias)
+        c1_relu = tf.nn.relu(c1_conv_bias)
 
-        # pool1
-        # pool1 = tf.nn.max_pool(x0_relu, ksize=[1, self.pool_size, self.pool_size, 1],
-        #                        strides=[1, 2, 2, 1], padding='SAME', name='pool1')
+        # pool_1
+        pool_1 = tf.nn.max_pool2d(c1_relu, ksize=(self.pool_size, self.pool_size), 
+                         strides=self.pool_strides, padding='SAME')
+
+        # cnn-2
+        # c1_conv = tf.nn.conv2d(pool_1, self.filters_2, self.strides_2, padding="SAME")
+        # c1_conv_bias = tf.nn.bias_add(c1_conv, self.cnn_bias_2)
+        # c1_relu = tf.nn.relu(c1_conv_bias)
+
+        # pool_2 = tf.nn.max_pool2d(c1_relu, ksize=(self.pool_size_2, self.pool_size_2), 
+        #                  strides=self.pool_strides_2, padding='SAME')
 
         # this reshape "flattens" the image data
-        x0_inputs = tf.reshape(x0_relu, [x0_relu.shape[0],-1])
+        x0_inputs = tf.reshape(pool_1, [pool_1.shape[0], -1])
 
         x1 = linear_unit(x0_inputs, self.W1, self.B1)
         # apply ReLU activation
