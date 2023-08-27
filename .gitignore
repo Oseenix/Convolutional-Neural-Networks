@@ -2,6 +2,5 @@
 .DS_Store
 .vscode
 __pycache__
-CIFAR_data/
 tmp/
 hyp.md
